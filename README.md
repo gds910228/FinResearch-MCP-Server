@@ -1,319 +1,199 @@
-# FinResearch MCP — 智能投研分析助手
+# FinResearch MCP Server
 
-面向「个人投资者/新手」的 MCP 服务：自动抓取最新财报、解析文本，并生成通俗化的综合财务健康分析（收入、盈利、现金流、负债与风险）。
+A Model Context Protocol (MCP) server for intelligent financial research and analysis with automated HTML report generation.
 
-## 功能亮点
+## Features
 
-- 一键端到端：抓取 → 解析 → 通俗化解读
-- 支持 US 市场（EDGAR）：自动从 Atom 源定位最新 10-Q/10-K
-- 自动跟进 EDGAR filing 索引页（-index.htm）至主文档 HTML，提高分析有效性
-- 支持直接传入 PDF/HTML 报告 URL（兜底）
-- HTML 解析默认不依赖 pdfminer；PDF 解析可选安装 pdfminer.six
+- **Multi-market Support**: Fetch financial reports from US (EDGAR) and Chinese A-share markets
+- **Intelligent Text Extraction**: Extract and parse content from PDF and HTML financial documents
+- **AI-Powered Analysis**: Generate comprehensive financial health assessments with Chinese A-share specialization
+- **Automated HTML Reports**: Generate beautiful, interactive HTML financial analysis reports
+- **End-to-End Workflow**: Complete analysis pipeline from data fetching to visual insights
 
-## 环境准备
+## 🆕 New Features
 
-- Python 3.13（Windows 11 已验证）
-- 建议使用 venv/uv 等隔离环境
+### Chinese A-Share Analysis
+- **Specialized A-Share Analyzer**: Dedicated module for Chinese financial reports analysis
+- **Chinese Financial Terms**: Support for Chinese accounting terminology and standards
+- **Localized Risk Assessment**: Risk evaluation tailored for Chinese market conditions
 
-安装依赖（推荐使用清华镜像加速）：
-```
-# 若 venv 中无 pip，先安装
-.\.venv\Scripts\python.exe -m ensurepip --upgrade
+### Automated HTML Report Generation
+- **Modern Design**: Bento Grid layout with Tesla Red (#E31937) theme
+- **Data Visualization**: Interactive charts using Chart.js for risk assessment
+- **Responsive Layout**: Mobile-friendly design with smooth animations
+- **Professional Styling**: TailwindCSS + Font Awesome icons
+- **Apple-style Animations**: Smooth scroll effects and hover interactions
 
-# （可选）设置镜像
-.\.venv\Scripts\python.exe -m pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+## Tools
 
-# 安装最小依赖（HTML 解析即可运行）
-.\.venv\Scripts\python.exe -m pip install -U beautifulsoup4 httpx tenacity pydantic python-dotenv openai mcp[cli]>=1.12.3
+### `fetch_latest_report_tool`
+Fetch the latest financial report metadata for a given stock symbol.
 
-# 如需解析 PDF，再安装：
-.\.venv\Scripts\python.exe -m pip install -U pdfminer.six
-```
+**Parameters:**
+- `symbol` (string): Stock symbol (e.g., "AAPL", "600143")
+- `market` (string, optional): Market code ("US" or "CN", defaults to "CN")
 
-## 快速验证（本地冒烟测试）
+**Returns:**
+- Report metadata including URL, title, date, and source information
 
-无需 MCP 客户端，直接运行：
+### `extract_text_from_pdf`
+Download and extract text content from PDF or HTML financial documents.
+
+**Parameters:**
+- `url` (string): URL of the document to extract text from
+
+**Returns:**
+- Extracted text content with metadata (content type, size, etc.)
+
+### `analyze_text`
+Generate a comprehensive financial health analysis from extracted text with automatic HTML report generation.
+
+**Parameters:**
+- `text` (string): Financial document text to analyze
+- `symbol` (string, optional): Stock symbol for HTML report generation
+- `company_name` (string, optional): Company name for report title
+
+**Returns:**
+- Structured analysis covering revenue, profitability, cash flow, debt, and risk assessment
+- **Automatically generates HTML report** when symbol is provided
+
+### `analyze_symbol` ⭐
+End-to-end analysis combining all steps: fetch report → extract text → analyze → generate HTML.
+
+**Parameters:**
+- `symbol` (string): Stock symbol to analyze
+- `market` (string, optional): Market code (defaults to "CN")
+
+**Returns:**
+- Complete analysis results with report metadata, extraction info, and financial insights
+- **Automatically generates beautiful HTML report** saved to `reports/` directory
+
+## Resources
+
+### `report://{symbol}`
+Access the latest report metadata for a stock symbol as a resource.
+
+**Example:** `report://600143` returns metadata for stock 600143
+
+## Installation
+
+1. Clone the repository:
 ```bash
-# 使用符号（US 市场自动抓取最新 10-Q/10-K）
-.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol AAPL --market US
-
-# 或使用报告直链（HTML/PDF）
-.\.venv\Scripts\python.exe scripts/smoke_test.py --url "https://www.sec.gov/Archives/edgar/data/.../xxx.htm"
+git clone <repository-url>
+cd FinResearch-MCP-Server
 ```
 
-成功时输出 JSON，包括：
-- report：报告元数据（标题、日期、URL、来源）
-- extract：解析概要（类型、大小、消息）
-- analysis：通俗化财务健康解读
-
-## 使用示例
-
-### 1. 基础使用 - 分析美股公司
-
+2. Install dependencies:
 ```bash
-# 分析苹果公司最新财报
-.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol AAPL --market US
-
-# 分析微软公司最新财报
-.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol MSFT --market US
-
-# 分析特斯拉公司最新财报
-.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol TSLA --market US
+uv sync
 ```
 
-### 2. 直接分析报告URL
-
+3. Run the server:
 ```bash
-# 分析指定的SEC报告
-.\.venv\Scripts\python.exe scripts/smoke_test.py --url "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240930.htm"
-
-# 分析PDF格式报告
-.\.venv\Scripts\python.exe scripts/smoke_test.py --url "https://example.com/annual-report.pdf"
+uv run python main.py
 ```
 
-### 3. MCP客户端中的使用示例
+The server will start on `http://localhost:8000` using Server-Sent Events (SSE) transport.
 
-在支持MCP的客户端（如Claude Desktop）中连接后，可以这样使用：
+## Usage Examples
 
-#### 工具调用示例
-
-**获取最新报告元数据：**
-```json
-{
-  "tool": "fetch_latest_report_tool",
-  "arguments": {
-    "symbol": "AAPL",
-    "market": "US"
-  }
-}
-```
-
-**提取文档文本：**
-```json
-{
-  "tool": "extract_text_from_pdf",
-  "arguments": {
-    "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240930.htm"
-  }
-}
-```
-
-**分析文本内容：**
-```json
-{
-  "tool": "analyze_text",
-  "arguments": {
-    "text": "Revenue increased by 15% year-over-year to $95.3 billion..."
-  }
-}
-```
-
-**端到端分析：**
-```json
-{
-  "tool": "analyze_symbol",
-  "arguments": {
-    "symbol": "AAPL",
-    "market": "US"
-  }
-}
-```
-
-#### 资源访问示例
-
-**获取公司报告资源：**
-```
-report://AAPL
-```
-
-### 4. 典型输出示例
-
-**成功的分析输出：**
-```json
-{
-  "ok": true,
-  "symbol": "AAPL",
-  "market": "US",
-  "report": {
-    "ok": true,
-    "symbol": "AAPL",
-    "title": "Apple Inc. - Form 10-Q",
-    "date": "2024-09-30",
-    "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240930.htm",
-    "source": "EDGAR"
-  },
-  "extract": {
-    "ok": true,
-    "content_type": "text/html",
-    "bytes": 245678,
-    "message": "Successfully extracted text from HTML document"
-  },
-  "analysis": {
-    "ok": true,
-    "summary": "苹果公司财务状况整体健康...",
-    "revenue_analysis": "营收表现强劲，同比增长15%...",
-    "profitability_analysis": "盈利能力保持稳定...",
-    "cash_flow_analysis": "现金流充裕...",
-    "debt_analysis": "负债结构合理...",
-    "risk_factors": ["市场竞争加剧", "供应链风险"],
-    "overall_score": 85
-  }
-}
-```
-
-### 5. 常见使用场景
-
-**投资研究：**
-```bash
-# 比较同行业公司
-.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol AAPL --market US
-.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol GOOGL --market US
-.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol MSFT --market US
-```
-
-**定期监控：**
-```bash
-# 监控持仓公司的最新财报
-.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol TSLA --market US
-.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol NVDA --market US
-```
-
-**深度分析：**
-```bash
-# 先获取报告URL，再进行详细分析
-.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol AMZN --market US
-# 然后使用返回的URL进行更深入的分析
-```
-
-### 6. 错误处理示例
-
-**符号不存在：**
-```json
-{
-  "ok": false,
-  "symbol": "INVALID",
-  "market": "US",
-  "message": "No recent filings found for symbol INVALID",
-  "report": {
-    "ok": false,
-    "message": "Symbol not found in EDGAR database"
-  }
-}
-```
-
-**网络错误：**
-```json
-{
-  "ok": false,
-  "message": "Failed to extract text from report.",
-  "extract": {
-    "ok": false,
-    "message": "HTTP 404: Document not found"
-  }
-}
-```
-
-## 以 MCP 方式运行
-
-启动服务（Stdio 模式）：
-```
-.\.venv\Scripts\python.exe main.py
-```
-
-在支持 MCP 的客户端中连接后，可调用以下工具：
-
-- fetch_latest_report(symbol, market="CN")  
-  获取最新报告元数据（US: EDGAR；CN：占位；支持直接 URL 作为 symbol 兜底）
-
-- extract_text_from_pdf(url)  
-  下载并提取 PDF/HTML 文本（若为 EDGAR 索引页，会自动跟进至主文档）
-
-- analyze_text(text)  
-  对给定文本生成通俗化“综合财务健康分析”
-
-- analyze_symbol(symbol, market="CN")  
-  端到端：抓取 → 解析 → 分析
-
-资源（Resources）：
-- report://{symbol}  
-  返回最新报告元数据（默认 market=CN）
-
-## MCP 客户端配置
-
-SSE 直连（默认，main.py 使用 transport="sse"）
-1) 启动服务
-```
-.\.venv\Scripts\python.exe main.py
-```
-2) 观察控制台，记录输出的 SSE 地址（类似 http://127.0.0.1:43xxx/）。首次运行可能触发防火墙提示，请允许本地访问。
-3) 在支持 MCP 的客户端中添加 SSE 配置（以 Claude Desktop 为例，示例 JSON 片段）：
-```json
-{
-  "mcpServers": {
-    "FinResearchMCP": {
-      "type": "sse",
-      "url": "http://127.0.0.1:43112/"
-    }
-  }
-}
-```
-- url 填上一步控制台打印的实际地址
-- 保存配置后，重启客户端或触发刷新
-
-可选：使用 stdio 模式（某些客户端仅支持 command/stdio）
-- 将 main.py 末尾启动方式改为：
+### Analyze Chinese A-Share Stock (with HTML Report)
 ```python
-mcp.run(transport="stdio")
-```
-- 客户端配置改为 command/args（以 Claude Desktop 为例）：
-```json
-{
-  "mcpServers": {
-    "FinResearchMCP": {
-      "command": "python",
-      "args": ["main.py"]
-    }
-  }
-}
-```
-- Windows 路径按实际 venv 位置填写，必要时加上 "cwd" 指定工作目录
-
-工具与资源在客户端内可直接调用：
-- Tools: fetch_latest_report, extract_text_from_pdf, analyze_text, analyze_symbol
-- Resource: report://{symbol}
-
-
-## 目录结构
-
-```
-.
-├─ main.py                 # MCP 服务入口（FastMCP）
-├─ modules/
-│  ├─ scraper.py          # 报告抓取（US: EDGAR；直链兜底）
-│  ├─ parser.py           # 文档解析（HTML；PDF 可选 pdfminer）
-│  ├─ analysis.py         # 通俗化综合财务健康分析（规则/模板）
-│  └─ __init__.py
-├─ scripts/
-│  └─ smoke_test.py       # 本地冒烟测试脚本（不依赖 MCP 客户端）
-├─ docs/
-│  ├─ PRD.md
-│  └─ tasks.md
-└─ pyproject.toml
+# Analyze 金发科技 (Kingfa) - automatically generates HTML report
+result = analyze_symbol("600143", "CN")
+# HTML report saved to: reports/600143_financial_report_YYYYMMDD_HHMMSS.html
 ```
 
-## 设计与实现要点
+### Analyze 三一重工 (Sany Heavy Industry)
+```python
+# Analyze 三一重工 - generates comprehensive HTML report
+result = analyze_symbol("600031", "CN")
+# Beautiful HTML report with charts and visualizations
+```
 
-- 抓取：US 使用 EDGAR Atom 源定位最新 10-Q/10-K；返回 filing 索引页链接。
-- 解析：遇到 EDGAR 索引页（-index.htm）将自动解析“文档列表”并跟进至主文档 HTML，再提取正文文本。
-- 分析：基于关键词与模板生成通俗化解读；覆盖收入、盈利、现金流、负债四大维度；可按需扩充词表或接入 LLM 增强。
-- 异常与容错：网络重试（tenacity）、HTML 清洗、PDF 懒加载（未安装 pdfminer 也能跑 HTML）。
+### Analyze US Stock
+```python
+# Fetch and analyze Apple Inc.
+result = analyze_symbol("AAPL", "US")
+```
 
-## 已知限制与后续优化
+### View Generated HTML Reports
+After analysis, HTML reports are automatically saved to the `reports/` directory. You can:
 
-- CN 市场尚未接入官方源（可用直链兜底）；后续可集成巨潮/交易所公告目录。
-- EDGAR 主文档选择采用启发式，少数 filing 结构可能需要专项规则增强。
-- 分析为规则/模板基线，可接入 LLM（设置 OPENAI_API_KEY）以提升可读性与准确性。
+1. Start a local server to view reports:
+```bash
+python -m http.server 8080
+```
 
-## 许可证
+2. Open in browser:
+```
+http://localhost:8080/reports/
+```
 
-MIT（如无特别声明，可按企业内部合规策略调整）
+## HTML Report Features
+
+### 🎨 Visual Design
+- **Bento Grid Layout**: Modern card-based design
+- **Tesla Red Theme**: Professional color scheme (#E31937)
+- **Typography**: Large impact numbers with Inter font
+- **Bilingual**: Chinese-English mixed layout
+
+### 📊 Data Visualization
+- **Risk Assessment Radar Chart**: 5-dimension risk analysis
+- **Industry Position Bars**: Market position indicators  
+- **Financial Metrics Cards**: Key performance indicators
+- **Interactive Elements**: Hover effects and animations
+
+### 📱 Responsive Design
+- **Mobile Optimized**: Perfect on all screen sizes
+- **Smooth Animations**: Apple-style scroll effects
+- **Touch Friendly**: Optimized for mobile interaction
+
+## Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   MCP Client    │───▶│  FinResearch     │───▶│   Data Sources  │
+│                 │    │  MCP Server      │    │                 │
+│ - Claude        │    │                  │    │ - EDGAR (US)    │
+│ - Other clients │    │ - Report Fetcher │    │ - Sina Finance  │
+│                 │    │ - Text Extractor │    │ - Custom URLs   │
+│                 │    │ - CN Analyzer    │    │                 │
+│                 │    │ - HTML Generator │    │                 │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                │
+                                ▼
+                       ┌─────────────────┐
+                       │  HTML Reports   │
+                       │                 │
+                       │ - Bento Grid    │
+                       │ - Charts        │
+                       │ - Responsive    │
+                       │ - Interactive   │
+                       └─────────────────┘
+```
+
+## Supported Markets
+
+- **US Market**: EDGAR SEC filings for US public companies
+- **Chinese A-Share Market**: Shanghai/Shenzhen Stock Exchange with specialized analysis
+- **Custom URLs**: Direct analysis of any accessible financial document
+
+## File Structure
+
+```
+FinResearch-MCP-Server/
+├── main.py                 # MCP server entry point
+├── modules/
+│   ├── scraper.py         # Data fetching from various sources
+│   ├── parser.py          # Text extraction from documents
+│   ├── analysis.py        # Main analysis orchestrator
+│   ├── cn_analyzer.py     # Chinese A-share specialized analyzer
+│   └── html_generator.py  # HTML report generation
+├── reports/               # Generated HTML reports (auto-created)
+└── README.md
+```
+
+## License
+
+MIT License

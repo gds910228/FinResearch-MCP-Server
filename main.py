@@ -97,7 +97,12 @@ def analyze_symbol(symbol: str, market: str = "CN") -> Dict[str, Any]:
             },
         }
 
-    analysis: AnalysisResult = analyze_plain_text(extract.text)
+    # Step 3: Analyze the extracted text with HTML generation
+    analysis: AnalysisResult = analyze_plain_text(
+        text=extract.text,
+        symbol=symbol,
+        company_name=f"{symbol}公司"  # 可以根据需要改进公司名称获取
+    )
 
     return {
         "ok": True,

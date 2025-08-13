@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional
 
 from pydantic import BaseModel
 from .cn_analyzer import CNFinancialAnalyzer
+from .html_generator import FinancialReportHTMLGenerator
 
 
 class AnalysisResult(BaseModel):
@@ -39,13 +40,14 @@ def _mk_paragraph(title: str, clues: List[str], fallback: str) -> str:
     return f"{title}: {preview}"
 
 
-def analyze_text(text: str) -> AnalysisResult:
+def analyze_text(text: str, symbol: str = None, company_name: str = None) -> AnalysisResult:
     """
     规则/模板驱动的通俗化综合财务健康分析（离线可用）：
     - 根据关键词在文本中抓取线索片段
     - 组装四大维度的通俗化段落
     - 若文本过短则给出温和提示
     - 支持中文A股财报分析
+    - 自动生成HTML财报分析网页
     """
     t = text or ""
     short = len(t) < 500
@@ -60,6 +62,20 @@ def analyze_text(text: str) -> AnalysisResult:
         cn_result = cn_analyzer.analyze_cn_financial_text(t)
         
         if cn_result.get("ok", False):
+            # 生成HTML报告
+            if symbol:
+                try:
+                    html_generator = FinancialReportHTMLGenerator()
+                    html_path = html_generator.save_report_html(
+                        symbol=symbol,
+                        analysis_data=cn_result,
+                        company_name=company_name,
+                        market="CN"
+                    )
+                    print(f"HTML财报分析网页已生成: {html_path}")
+                except Exception as e:
+                    print(f"生成HTML报告时出错: {e}")
+            
             return AnalysisResult(
                 ok=True,
                 summary=cn_result.get("summary", "A股财务分析完成"),
