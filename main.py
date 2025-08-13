@@ -128,4 +128,4 @@ def report_resource(symbol: str) -> str:
 
 if __name__ == "__main__":
     # Start the server
-    mcp.run(transport="stdio")
+    mcp.run(transport="sse")

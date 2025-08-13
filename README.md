@@ -33,7 +33,7 @@
 ## 快速验证（本地冒烟测试）
 
 无需 MCP 客户端，直接运行：
-```
+```bash
 # 使用符号（US 市场自动抓取最新 10-Q/10-K）
 .\.venv\Scripts\python.exe scripts/smoke_test.py --symbol AAPL --market US
 
@@ -45,6 +45,173 @@
 - report：报告元数据（标题、日期、URL、来源）
 - extract：解析概要（类型、大小、消息）
 - analysis：通俗化财务健康解读
+
+## 使用示例
+
+### 1. 基础使用 - 分析美股公司
+
+```bash
+# 分析苹果公司最新财报
+.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol AAPL --market US
+
+# 分析微软公司最新财报
+.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol MSFT --market US
+
+# 分析特斯拉公司最新财报
+.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol TSLA --market US
+```
+
+### 2. 直接分析报告URL
+
+```bash
+# 分析指定的SEC报告
+.\.venv\Scripts\python.exe scripts/smoke_test.py --url "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240930.htm"
+
+# 分析PDF格式报告
+.\.venv\Scripts\python.exe scripts/smoke_test.py --url "https://example.com/annual-report.pdf"
+```
+
+### 3. MCP客户端中的使用示例
+
+在支持MCP的客户端（如Claude Desktop）中连接后，可以这样使用：
+
+#### 工具调用示例
+
+**获取最新报告元数据：**
+```json
+{
+  "tool": "fetch_latest_report_tool",
+  "arguments": {
+    "symbol": "AAPL",
+    "market": "US"
+  }
+}
+```
+
+**提取文档文本：**
+```json
+{
+  "tool": "extract_text_from_pdf",
+  "arguments": {
+    "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240930.htm"
+  }
+}
+```
+
+**分析文本内容：**
+```json
+{
+  "tool": "analyze_text",
+  "arguments": {
+    "text": "Revenue increased by 15% year-over-year to $95.3 billion..."
+  }
+}
+```
+
+**端到端分析：**
+```json
+{
+  "tool": "analyze_symbol",
+  "arguments": {
+    "symbol": "AAPL",
+    "market": "US"
+  }
+}
+```
+
+#### 资源访问示例
+
+**获取公司报告资源：**
+```
+report://AAPL
+```
+
+### 4. 典型输出示例
+
+**成功的分析输出：**
+```json
+{
+  "ok": true,
+  "symbol": "AAPL",
+  "market": "US",
+  "report": {
+    "ok": true,
+    "symbol": "AAPL",
+    "title": "Apple Inc. - Form 10-Q",
+    "date": "2024-09-30",
+    "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240930.htm",
+    "source": "EDGAR"
+  },
+  "extract": {
+    "ok": true,
+    "content_type": "text/html",
+    "bytes": 245678,
+    "message": "Successfully extracted text from HTML document"
+  },
+  "analysis": {
+    "ok": true,
+    "summary": "苹果公司财务状况整体健康...",
+    "revenue_analysis": "营收表现强劲，同比增长15%...",
+    "profitability_analysis": "盈利能力保持稳定...",
+    "cash_flow_analysis": "现金流充裕...",
+    "debt_analysis": "负债结构合理...",
+    "risk_factors": ["市场竞争加剧", "供应链风险"],
+    "overall_score": 85
+  }
+}
+```
+
+### 5. 常见使用场景
+
+**投资研究：**
+```bash
+# 比较同行业公司
+.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol AAPL --market US
+.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol GOOGL --market US
+.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol MSFT --market US
+```
+
+**定期监控：**
+```bash
+# 监控持仓公司的最新财报
+.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol TSLA --market US
+.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol NVDA --market US
+```
+
+**深度分析：**
+```bash
+# 先获取报告URL，再进行详细分析
+.\.venv\Scripts\python.exe scripts/smoke_test.py --symbol AMZN --market US
+# 然后使用返回的URL进行更深入的分析
+```
+
+### 6. 错误处理示例
+
+**符号不存在：**
+```json
+{
+  "ok": false,
+  "symbol": "INVALID",
+  "market": "US",
+  "message": "No recent filings found for symbol INVALID",
+  "report": {
+    "ok": false,
+    "message": "Symbol not found in EDGAR database"
+  }
+}
+```
+
+**网络错误：**
+```json
+{
+  "ok": false,
+  "message": "Failed to extract text from report.",
+  "extract": {
+    "ok": false,
+    "message": "HTTP 404: Document not found"
+  }
+}
+```
 
 ## 以 MCP 方式运行
 
@@ -72,7 +239,28 @@
   返回最新报告元数据（默认 market=CN）
 
 ## MCP 客户端配置
-默认：使用 stdio 模式（某些客户端仅支持 command/stdio）
+
+SSE 直连（默认，main.py 使用 transport="sse"）
+1) 启动服务
+```
+.\.venv\Scripts\python.exe main.py
+```
+2) 观察控制台，记录输出的 SSE 地址（类似 http://127.0.0.1:43xxx/）。首次运行可能触发防火墙提示，请允许本地访问。
+3) 在支持 MCP 的客户端中添加 SSE 配置（以 Claude Desktop 为例，示例 JSON 片段）：
+```json
+{
+  "mcpServers": {
+    "FinResearchMCP": {
+      "type": "sse",
+      "url": "http://127.0.0.1:43112/"
+    }
+  }
+}
+```
+- url 填上一步控制台打印的实际地址
+- 保存配置后，重启客户端或触发刷新
+
+可选：使用 stdio 模式（某些客户端仅支持 command/stdio）
 - 将 main.py 末尾启动方式改为：
 ```python
 mcp.run(transport="stdio")
@@ -94,25 +282,6 @@ mcp.run(transport="stdio")
 - Tools: fetch_latest_report, extract_text_from_pdf, analyze_text, analyze_symbol
 - Resource: report://{symbol}
 
-SSE 直连（可选，main.py 使用 transport="sse"）
-1) 启动服务
-```
-.\.venv\Scripts\python.exe main.py
-```
-2) 观察控制台，记录输出的 SSE 地址（类似 http://127.0.0.1:43xxx/）。首次运行可能触发防火墙提示，请允许本地访问。
-3) 在支持 MCP 的客户端中添加 SSE 配置（以 Claude Desktop 为例，示例 JSON 片段）：
-```json
-{
-  "mcpServers": {
-    "FinResearchMCP": {
-      "type": "sse",
-      "url": "http://127.0.0.1:43112/"
-    }
-  }
-}
-```
-- url 填上一步控制台打印的实际地址
-- 保存配置后，重启客户端或触发刷新
 
 ## 目录结构
 
