@@ -8,6 +8,7 @@ import httpx
 import xml.etree.ElementTree as ET
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from .cn_stock_fetcher import CNStockFetcher
 
 
 class ReportMeta(BaseModel):
@@ -84,13 +85,39 @@ def fetch_latest_report(symbol: str, market: str = "CN") -> ReportMeta:
             message="Failed to locate latest filing from EDGAR. You may pass a direct PDF/HTML URL instead.",
         )
 
-    # CN 等其他市场：先返回占位，提示使用直链兜底
+    # CN 市场：使用A股数据获取器
+    if m == "CN":
+        cn_fetcher = CNStockFetcher()
+        cn_result = cn_fetcher.fetch_latest_report(symbol)
+        
+        if cn_result["ok"]:
+            return ReportMeta(
+                ok=True,
+                symbol=symbol,
+                market=m,
+                title=cn_result.get("title", f"{symbol} 财务报告"),
+                date=cn_result.get("date"),
+                url=cn_result.get("url"),
+                source=cn_result.get("source", "CNINFO"),
+                raw=cn_result.get("raw", {}),
+                message=cn_result.get("message", "成功获取A股财报信息")
+            )
+        else:
+            return ReportMeta(
+                ok=False,
+                symbol=symbol,
+                market=m,
+                source="CNINFO",
+                message=cn_result.get("message", "获取A股财报失败，请检查股票代码或使用直接URL"),
+            )
+    
+    # 其他市场：返回占位信息
     return ReportMeta(
         ok=False,
         symbol=symbol,
         market=m,
-        source="CNINFO",
-        message="CN market provider not implemented yet. Please pass a direct PDF/HTML report URL as symbol for now.",
+        source="UNKNOWN",
+        message=f"Market {m} not supported yet. Please pass a direct PDF/HTML report URL as symbol for now.",
     )
 
 

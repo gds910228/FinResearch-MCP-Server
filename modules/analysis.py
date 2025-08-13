@@ -5,6 +5,7 @@ import re
 from typing import Dict, Any, List, Optional
 
 from pydantic import BaseModel
+from .cn_analyzer import CNFinancialAnalyzer
 
 
 class AnalysisResult(BaseModel):
@@ -44,10 +45,32 @@ def analyze_text(text: str) -> AnalysisResult:
     - 根据关键词在文本中抓取线索片段
     - 组装四大维度的通俗化段落
     - 若文本过短则给出温和提示
+    - 支持中文A股财报分析
     """
     t = text or ""
     short = len(t) < 500
+    
+    # 检测是否为中文财报
+    chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', t))
+    is_chinese_report = chinese_chars > len(t) * 0.3  # 如果中文字符超过30%，认为是中文报告
+    
+    # 如果是中文财报，使用专门的A股分析器
+    if is_chinese_report:
+        cn_analyzer = CNFinancialAnalyzer()
+        cn_result = cn_analyzer.analyze_cn_financial_text(t)
+        
+        if cn_result.get("ok", False):
+            return AnalysisResult(
+                ok=True,
+                summary=cn_result.get("summary", "A股财务分析完成"),
+                revenue=cn_result.get("revenue", "营业收入分析"),
+                profitability=cn_result.get("profitability", "盈利能力分析"),
+                cashflow=cn_result.get("cashflow", "现金流分析"),
+                debt=cn_result.get("debt", "债务风险分析"),
+                risk_notes=cn_result.get("risk_notes", [])
+            )
 
+    # 原有的英文财报分析逻辑
     revenue_clues = _find_indicator_lines(
         t,
         [
